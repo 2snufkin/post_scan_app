@@ -24,6 +24,11 @@ def generate_output_path(input_pdf_path, prefix="scanned"):
     output_path = os.path.join(duplex_scan_folder, output_filename)
     return output_path
 
+def get_total_pages(pdf_path):
+    pdf_reader = PdfReader(open(pdf_path, 'rb'))
+    total_pages = len(pdf_reader.pages)
+    pdf_reader.stream.close()
+    return total_pages
 
 def reverse_pdf_pages(pdf_path):
     """
