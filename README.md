@@ -41,6 +41,13 @@ The PDF Duplex Scan Organizer is a Python application that simplifies the organi
 
 5. Choose between "One File" or "Two Files" options, select the required files, and click the "Arrange" button to organize the PDFs.
 
+## Install
+1. 
+    ```bash
+    pip install auto-py-to-exe
+    ```
+2. run  `auto-py-to-exe`
+
 ## Usage
 
 1. Select "One File" if you have a single PDF containing both odd and even pages, or select "Two Files" if you have separate PDFs for odd and even pages.

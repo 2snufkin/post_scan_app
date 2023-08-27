@@ -1,5 +1,8 @@
 import datetime
 import os
+import string
+from datetime import datetime
+import random
 
 from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 
@@ -12,7 +15,7 @@ def generate_output_path(input_pdf_path, prefix="scanned"):
     :return: the path as string
     """
     base_filename = os.path.splitext(os.path.basename(input_pdf_path))[0]
-    output_filename = f"{base_filename}_{prefix}_{datetime.datetime.now().strftime('%H-%M')}.pdf"
+    output_filename = f"{base_filename}_{prefix}_{datetime.now().strftime('%H-%M')}.pdf"
 
     documents_folder = os.path.join(os.path.expanduser('~'), 'Documents')
     duplex_scan_folder = os.path.join(documents_folder, 'Duplex scan')
@@ -30,11 +33,20 @@ def get_total_pages(pdf_path):
     pdf_reader.stream.close()
     return total_pages
 
+def generate_random_string(length):
+    """
+    Generate a random string of specified length.
+    :param length: The length of the random string.
+    :return: The generated random string.
+    """
+    letters_and_digits = string.ascii_letters + string.digits
+    return ''.join(random.choice(letters_and_digits) for _ in range(length))
+
 def reverse_pdf_pages(pdf_path):
     """
-    reverse the order of pages
-    :param pdf_path: the path of the pdf
-    :return: the new reversed pdf
+    Reverse the order of pages in a PDF file and include a random string in the filename.
+    :param pdf_path: The path of the PDF file.
+    :return: The new reversed PDF filename.
     """
     pdf_reader = PdfReader(open(pdf_path, 'rb'))
     pdf_writer = PdfWriter()
@@ -42,11 +54,42 @@ def reverse_pdf_pages(pdf_path):
     for page in reversed(range(len(pdf_reader.pages))):
         pdf_writer.add_page(pdf_reader.pages[page])
 
-    reversed_pdf_path = 'reversed_{}'.format(os.path.basename(pdf_path))
-    with open(reversed_pdf_path, 'wb') as f:
+    # Generate a random string of 12 characters
+    random_string = generate_random_string(12)
+    reversed_pdf_filename = 'reversed_{}_{}.pdf'.format(os.path.splitext(os.path.basename(pdf_path))[0], random_string)
+
+    with open(reversed_pdf_filename, 'wb') as f:
         pdf_writer.write(f)
 
-    return reversed_pdf_path
+    return reversed_pdf_filename
+
+def close_pdf(pdf_path):
+    """
+    Close a PDF file using PyPDF2's PdfReader.
+    :param pdf_path: The path of the PDF file to close.
+    :return: True if the PDF was closed successfully, False otherwise.
+    """
+    try:
+        pdf_reader = PdfReader(pdf_path)
+        pdf_reader.stream.close()
+        print(f"PDF '{pdf_path}' closed successfully.")
+        return True
+    except Exception as e:
+        print(f"An error occurred while trying to close '{pdf_path}': {e}")
+        return False
+def remove_file(filename):
+    """
+    Remove a file and handle exceptions using try-catch.
+    :param filename: The name of the file to remove.
+    :return: True if the file was removed successfully, False otherwise.
+    """
+    try:
+        os.remove(filename)
+        print(f"File '{filename}' removed successfully.")
+        return True
+    except OSError as e:
+        print(f"An error occurred while trying to remove '{filename}': {e}")
+        return False
 
 
 def organize_scan_pdf(odd_even_pdf_path):
@@ -90,7 +133,7 @@ def organize_scan_pdf(odd_even_pdf_path):
     reversed_even_pdf_reader.stream.close()
 
     # Remove the reversed even PDF file
-    os.remove(reversed_even_pdf)
+    remove_file(reversed_even_pdf)
 
 
 def merge_2_pdfs_after_scan(odd_pdf, even_pdf):
@@ -119,9 +162,11 @@ def merge_2_pdfs_after_scan(odd_pdf, even_pdf):
 
     with open(os.path.join(os.path.dirname(odd_pdf), output_filename), 'wb') as f:
         new_pdf_writer.write(f)
-
+    reversed_even_pdf_reader.stream.close()
+    # close_pdf(reversed_even_pdf)
     # Remove the reversed even PDF file
-    os.remove(reversed_even_pdf)
+    remove_file(reversed_even_pdf)
+
 
 
 def merge_pdfs(input_paths, output_path):
