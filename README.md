@@ -1,7 +1,4 @@
 # PdfDuplexMate
-### GitHub App Description:
-
-**PDF Duplex Scan Organizer**
 
 The PDF Duplex Scan Organizer is a Python-based application designed to simplify the process of organizing scanned documents from duplex scanning. This app allows users to arrange scanned odd and even pages into a single PDF file for easy management and sharing.
 
@@ -62,6 +59,3 @@ Contributions are welcome! If you have any improvements or suggestions, please f
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
-
-Feel free to modify and expand the README as needed to provide more information about your application. Make sure to include any necessary setup instructions and usage guidelines to help users get started with your app.
