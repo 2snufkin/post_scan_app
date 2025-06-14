@@ -2,6 +2,8 @@ import tkinter as tk
 import tkinter.messagebox as messagebox
 from tkinter import filedialog, ttk
 import os
+import subprocess
+import platform
 
 from scan_tools import organize_scan_pdf, merge_2_pdfs_after_scan, get_total_pages
 
@@ -10,7 +12,12 @@ class ModernPDFApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Duplex Scanner Organizer")
-        self.root.configure(bg="#f5f5f5")
+
+        # Set the app to full screen
+        self.root.attributes("-fullscreen", True)
+
+        # Optionally, you can set a background color
+        self.root.configure(bg="#dcdad5")
 
         # Configure modern styling
         self.setup_styles()
@@ -36,13 +43,16 @@ class ModernPDFApp:
 
         self.create_modern_ui()
 
+        # Bind the Escape key to exit full screen
+        self.root.bind("<Escape>", self.exit_fullscreen)
+
     def setup_styles(self):
         """Configure modern styling for ttk widgets"""
         style = ttk.Style()
         style.theme_use("clam")
 
         # Define consistent color scheme
-        bg_color = "white"  # Light gray background
+        bg_color = "#dcdad5"  # Light gray background
         text_color = "#2c3e50"  # Dark blue-gray text
         accent_color = "#3498db"  # Blue accent
 
@@ -174,6 +184,23 @@ the result to your Documents/Duplex scan folder."""
         self.num_pages_entry = ttk.Entry(page_frame, font=("Segoe UI", 12), width=10)
         self.num_pages_entry.pack(anchor=tk.W, pady=(5, 0))
 
+        # Add filename input
+        ttk.Label(
+            page_frame,
+            text="Output filename (without .pdf extension) *:",
+            style="Instruction.TLabel",
+        ).pack(anchor=tk.W, pady=(15, 0))
+
+        filename_frame = ttk.Frame(page_frame)
+        filename_frame.pack(anchor=tk.W, pady=(5, 0))
+
+        self.filename_entry = ttk.Entry(filename_frame, font=("Segoe UI", 12), width=30)
+        self.filename_entry.pack(side=tk.LEFT)
+
+        ttk.Label(filename_frame, text=".pdf", style="Instruction.TLabel").pack(
+            side=tk.LEFT, padx=(2, 0)
+        )
+
     def create_mode_selection(self, parent):
         """Create the scanning mode selection"""
         mode_frame = ttk.LabelFrame(parent, text="Scanning Mode", padding="15")
@@ -185,7 +212,7 @@ the result to your Documents/Duplex scan folder."""
 
         self.one_file_radio = ttk.Radiobutton(
             one_file_frame,
-            text="📄 One File",
+            text="📑 One File",
             variable=self.radio_var,
             value="one_file",
             style="Modern.TRadiobutton",
@@ -250,7 +277,6 @@ the result to your Documents/Duplex scan folder."""
             command=self.arrange,
             style="Action.TButton",
         )
-        self.process_button.pack(side=tk.LEFT, padx=10, pady=10)  
         self.process_button.pack(side=tk.LEFT)
 
     def create_status_section(self, parent):
@@ -364,6 +390,18 @@ the result to your Documents/Duplex scan folder."""
         except Exception as e:
             self.update_status(f"Error selecting files: {str(e)}", "#e74c3c")
 
+    def open_folder(self, folder_path):
+        """Open the folder containing the output file"""
+        try:
+            if platform.system() == "Windows":
+                os.startfile(folder_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", folder_path])
+            else:  # Linux
+                subprocess.run(["xdg-open", folder_path])
+        except Exception as e:
+            print(f"Could not open folder: {e}")
+
     def arrange(self):
         """Process and arrange the PDF files"""
         try:
@@ -384,6 +422,23 @@ the result to your Documents/Duplex scan folder."""
                 )
                 return
 
+            # Validate filename input
+            filename = self.filename_entry.get().strip()
+            if not filename:
+                messagebox.showerror(
+                    "Input Error", "Please enter a filename for the output PDF."
+                )
+                return
+
+            # Check for invalid characters in filename
+            invalid_chars = '<>:"/\\|?*'
+            if any(char in filename for char in invalid_chars):
+                messagebox.showerror(
+                    "Input Error",
+                    f"Filename contains invalid characters. Please avoid: {invalid_chars}",
+                )
+                return
+
             self.update_status("Processing PDF...", "#f39c12")
             self.root.update()
 
@@ -391,6 +446,8 @@ the result to your Documents/Duplex scan folder."""
                 "The number of pages you entered doesn't match the total pages in your PDF(s). "
                 "Please check that all pages were scanned correctly."
             )
+
+            output_path = None
 
             if self.radio_var.get() == "one_file":
                 if not self.file_path:
@@ -407,14 +464,11 @@ the result to your Documents/Duplex scan folder."""
 
                 actual_pages = get_total_pages(self.file_path)
                 if num_pages == actual_pages:
-                    organize_scan_pdf(self.file_path)
-                    self.update_status("✓ PDF organized successfully!", "#27ae60")
-                    messagebox.showinfo(
-                        "Success",
-                        f"Your PDF has been organized successfully!\n\n"
-                        f"The organized file has been saved to:\n"
-                        f"Documents/Duplex scan/",
+                    output_path = organize_scan_pdf(
+                        self.file_path, custom_filename=filename
                     )
+                    self.update_status("✓ PDF organized successfully!", "#27ae60")
+                    self.show_success_message(output_path)
                 else:
                     self.update_status("Error: Page count mismatch", "#e74c3c")
                     messagebox.showerror(
@@ -442,14 +496,13 @@ the result to your Documents/Duplex scan folder."""
                 even_total = get_total_pages(self.even_pages_path)
 
                 if num_pages == odd_total == even_total:
-                    merge_2_pdfs_after_scan(self.odd_pages_path, self.even_pages_path)
-                    self.update_status("✓ PDFs merged successfully!", "#27ae60")
-                    messagebox.showinfo(
-                        "Success",
-                        f"Your PDFs have been merged successfully!\n\n"
-                        f"The organized file has been saved to:\n"
-                        f"Documents/Duplex scan/",
+                    output_path = merge_2_pdfs_after_scan(
+                        self.odd_pages_path,
+                        self.even_pages_path,
+                        custom_filename=filename,
                     )
+                    self.update_status("✓ PDFs merged successfully!", "#27ae60")
+                    self.show_success_message(output_path)
                 else:
                     self.update_status("Error: Page count mismatch", "#e74c3c")
                     messagebox.showerror(
@@ -466,6 +519,47 @@ the result to your Documents/Duplex scan folder."""
                 "Processing Error",
                 f"An error occurred while processing your PDF:\n\n{str(e)}",
             )
+
+    def show_success_message(self, output_path):
+        """Show success message with clickable folder link"""
+        folder_path = os.path.dirname(output_path)
+        filename = os.path.basename(output_path)
+
+        # Create custom dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Success")
+        dialog.geometry("400x200")
+        dialog.configure(bg="#f5f5f5")
+        dialog.resizable(False, False)
+
+        # Center the dialog
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # Success message
+        ttk.Label(
+            dialog,
+            text="✅ PDF processed successfully!",
+            font=("Segoe UI", 12, "bold"),
+            background="#f5f5f5",
+        ).pack(pady=20)
+
+        ttk.Label(dialog, text=f"File saved as: {filename}", background="#f5f5f5").pack(
+            pady=5
+        )
+
+        # Clickable folder button
+        folder_button = ttk.Button(
+            dialog, text="📁 Open Folder", command=lambda: self.open_folder(folder_path)
+        )
+        folder_button.pack(pady=10)
+
+        # Close button
+        ttk.Button(dialog, text="Close", command=dialog.destroy).pack(pady=5)
+
+    def exit_fullscreen(self, event=None):
+        """Exit full screen mode."""
+        self.root.attributes("-fullscreen", False)
 
 
 if __name__ == "__main__":

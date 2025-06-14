@@ -7,18 +7,24 @@ import random
 from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 
 
-def generate_output_path(input_pdf_path, prefix="scanned"):
+def generate_output_path(input_pdf_path, prefix="scanned", custom_filename=None):
     """
     generate an output path, so it will be saved in the Documents folder
     :param input_pdf_path: the original path of the pdf
     :param prefix: to add
+    :param custom_filename: custom filename without extension
     :return: the path as string
     """
-    base_filename = os.path.splitext(os.path.basename(input_pdf_path))[0]
-    output_filename = f"{base_filename}_{prefix}_{datetime.now().strftime('%H-%M')}.pdf"
+    if custom_filename:
+        output_filename = f"{custom_filename}.pdf"
+    else:
+        base_filename = os.path.splitext(os.path.basename(input_pdf_path))[0]
+        output_filename = (
+            f"{base_filename}_{prefix}_{datetime.now().strftime('%H-%M')}.pdf"
+        )
 
-    documents_folder = os.path.join(os.path.expanduser('~'), 'Documents')
-    duplex_scan_folder = os.path.join(documents_folder, 'Duplex scan')
+    documents_folder = os.path.join(os.path.expanduser("~"), "Documents")
+    duplex_scan_folder = os.path.join(documents_folder, "Duplex scan")
 
     # Create the 'Duplex scan' sub-folder if it doesn't exist
     if not os.path.exists(duplex_scan_folder):
@@ -27,11 +33,13 @@ def generate_output_path(input_pdf_path, prefix="scanned"):
     output_path = os.path.join(duplex_scan_folder, output_filename)
     return output_path
 
+
 def get_total_pages(pdf_path):
-    pdf_reader = PdfReader(open(pdf_path, 'rb'))
+    pdf_reader = PdfReader(open(pdf_path, "rb"))
     total_pages = len(pdf_reader.pages)
     pdf_reader.stream.close()
     return total_pages
+
 
 def generate_random_string(length):
     """
@@ -40,7 +48,8 @@ def generate_random_string(length):
     :return: The generated random string.
     """
     letters_and_digits = string.ascii_letters + string.digits
-    return ''.join(random.choice(letters_and_digits) for _ in range(length))
+    return "".join(random.choice(letters_and_digits) for _ in range(length))
+
 
 def reverse_pdf_pages(pdf_path):
     """
@@ -48,7 +57,7 @@ def reverse_pdf_pages(pdf_path):
     :param pdf_path: The path of the PDF file.
     :return: The new reversed PDF filename.
     """
-    pdf_reader = PdfReader(open(pdf_path, 'rb'))
+    pdf_reader = PdfReader(open(pdf_path, "rb"))
     pdf_writer = PdfWriter()
 
     for page in reversed(range(len(pdf_reader.pages))):
@@ -56,12 +65,15 @@ def reverse_pdf_pages(pdf_path):
 
     # Generate a random string of 12 characters
     random_string = generate_random_string(12)
-    reversed_pdf_filename = 'reversed_{}_{}.pdf'.format(os.path.splitext(os.path.basename(pdf_path))[0], random_string)
+    reversed_pdf_filename = "reversed_{}_{}.pdf".format(
+        os.path.splitext(os.path.basename(pdf_path))[0], random_string
+    )
 
-    with open(reversed_pdf_filename, 'wb') as f:
+    with open(reversed_pdf_filename, "wb") as f:
         pdf_writer.write(f)
 
     return reversed_pdf_filename
+
 
 def close_pdf(pdf_path):
     """
@@ -77,6 +89,8 @@ def close_pdf(pdf_path):
     except Exception as e:
         print(f"An error occurred while trying to close '{pdf_path}': {e}")
         return False
+
+
 def remove_file(filename):
     """
     Remove a file and handle exceptions using try-catch.
@@ -92,20 +106,21 @@ def remove_file(filename):
         return False
 
 
-def organize_scan_pdf(odd_even_pdf_path):
+def organize_scan_pdf(odd_even_pdf_path, custom_filename=None):
     """
-         takes the path of a PDF file containing odd pages and  even pages (for example if the pdf contains 14 pages,
-         the first 7 are the odd and the rest is the even pages) ,
-         and then returns a single PDF file with pages arranged in the order of odd-even pairs.
-        :param odd_even_pdf_path: the pdf that contains all the odd + even pages
-        :return: nothing
-        """
-    pdf_reader = PdfReader(open(odd_even_pdf_path, 'rb'))
+     takes the path of a PDF file containing odd pages and  even pages (for example if the pdf contains 14 pages,
+     the first 7 are the odd and the rest is the even pages) ,
+     and then returns a single PDF file with pages arranged in the order of odd-even pairs.
+    :param odd_even_pdf_path: the pdf that contains all the odd + even pages
+    :param custom_filename: custom filename without extension
+    :return: output file path
+    """
+    pdf_reader = PdfReader(open(odd_even_pdf_path, "rb"))
     total_pages = len(pdf_reader.pages)
 
     # Reverse only the even pages
     reversed_even_pdf = reverse_pdf_pages(odd_even_pdf_path)
-    reversed_even_pdf_reader = PdfReader(open(reversed_even_pdf, 'rb'))
+    reversed_even_pdf_reader = PdfReader(open(reversed_even_pdf, "rb"))
 
     # Create a new PDF writer
     merged_pdf_writer = PdfWriter()
@@ -120,10 +135,12 @@ def organize_scan_pdf(odd_even_pdf_path):
         merged_pdf_writer.add_page(pdf_reader.pages[total_pages - 1])
 
     # Generate the output PDF path
-    output_filename = generate_output_path(odd_even_pdf_path, prefix="scanned")
+    output_filename = generate_output_path(
+        odd_even_pdf_path, prefix="scanned", custom_filename=custom_filename
+    )
 
     # Save the merged PDF in the current directory
-    with open(output_filename, 'wb') as output_file:
+    with open(output_filename, "wb") as output_file:
         merged_pdf_writer.write(output_file)
 
     print(f"Merged PDF saved as '{output_filename}'.")
@@ -135,21 +152,24 @@ def organize_scan_pdf(odd_even_pdf_path):
     # Remove the reversed even PDF file
     remove_file(reversed_even_pdf)
 
+    return output_filename
 
-def merge_2_pdfs_after_scan(odd_pdf, even_pdf):
+
+def merge_2_pdfs_after_scan(odd_pdf, even_pdf, custom_filename=None):
     """
     if you scan pages in two steps: 1 for the odd pages and the second for the even pages, use this method to create
     one pdf file out of this scan
     :param odd_pdf: the pdf that contains the first scan
     :param even_pdf: the pdf that contains the second scan
-    :return: nothing
+    :param custom_filename: custom filename without extension
+    :return: output file path
     """
     # Reverse the pages in even_pdf
     reversed_even_pdf = reverse_pdf_pages(even_pdf)
 
     # Merge the odd and reversed even pages into a new PDF
-    odd_pdf_reader = PdfReader(open(odd_pdf, 'rb'))
-    reversed_even_pdf_reader = PdfReader(open(reversed_even_pdf, 'rb'))
+    odd_pdf_reader = PdfReader(open(odd_pdf, "rb"))
+    reversed_even_pdf_reader = PdfReader(open(reversed_even_pdf, "rb"))
 
     new_pdf_writer = PdfWriter()
     for page in range(len(odd_pdf_reader.pages)):
@@ -158,15 +178,18 @@ def merge_2_pdfs_after_scan(odd_pdf, even_pdf):
             new_pdf_writer.add_page(reversed_even_pdf_reader.pages[page])
 
     # Generate the output PDF path
-    output_filename = generate_output_path(odd_pdf, prefix="scanned")
+    output_filename = generate_output_path(
+        odd_pdf, prefix="scanned", custom_filename=custom_filename
+    )
 
-    with open(os.path.join(os.path.dirname(odd_pdf), output_filename), 'wb') as f:
+    with open(output_filename, "wb") as f:
         new_pdf_writer.write(f)
     reversed_even_pdf_reader.stream.close()
     # close_pdf(reversed_even_pdf)
     # Remove the reversed even PDF file
     remove_file(reversed_even_pdf)
 
+    return output_filename
 
 
 def merge_pdfs(input_paths, output_path):
@@ -181,11 +204,11 @@ def merge_pdfs(input_paths, output_path):
     # Iterate through each input PDF file
     for path in input_paths:
         # Open the PDF file in read-binary mode
-        with open(path, 'rb') as file:
+        with open(path, "rb") as file:
             merger.append(file)
 
     # Write the merged PDF to the output file
-    with open(output_path, 'wb') as output_file:
+    with open(output_path, "wb") as output_file:
         merger.write(output_file)
 
     print("PDFs merged successfully!")
